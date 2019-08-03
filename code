@@ -1,0 +1,859 @@
+
+IMPORTING LIBRARIES
+In [1]:
+import pandas as pd
+import numpy as np
+
+import nltk
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import wordnet
+from nltk.corpus import stopwords
+from nltk.probability import FreqDist
+
+import autocorrect as autoCorr
+
+from senticnet.senticnet import SenticNet
+FORMING EQUIVALENCE CLASSES
+First, we explore the given data to check the most common words that might associate to the 5 equivalence classes/aspects we have considered :
+
+Taste
+Quantity
+Price
+Delivery
+Product
+Note : No need to run this code section as the equivalence classes have been hardcoded after analyzing the dataset and from some intuition.
+
+In [2]:
+data = pd.read_csv('Reviews.csv')
+In [5]:
+data.head()
+Out[5]:
+Id	ProductId	UserId	ProfileName	HelpfulnessNumerator	HelpfulnessDenominator	Score	Time	Summary	Text
+0	1	B001E4KFG0	A3SGXH7AUHU8GW	delmartian	1	1	5	1303862400	Good Quality Dog Food	I have bought several of the Vitality canned d...
+1	2	B00813GRG4	A1D87F6ZCVE5NK	dll pa	0	0	1	1346976000	Not as Advertised	Product arrived labeled as Jumbo Salted Peanut...
+2	3	B000LQOCH0	ABXLMWJIXXAIN	Natalia Corres "Natalia Corres"	1	1	4	1219017600	"Delight" says it all	This is a confection that has been around a fe...
+3	4	B000UA0QIQ	A395BORC6FGVXV	Karl	3	3	2	1307923200	Cough Medicine	If you are looking for the secret ingredient i...
+4	5	B006K2ZZ7K	A1UQRSCLF8GW1T	Michael D. Bigham "M. Wassir"	0	0	5	1350777600	Great taffy	Great taffy at a great price. There was a wid...
+In [7]:
+# Forming POS tags of the top 30000 words
+
+y = data['Text'].dropna()[0:30000]
+text = ""
+for i in y:
+    text = text + " " + i
+tokenized_word = word_tokenize(text)
+tokens = nltk.pos_tag(tokenized_word)
+In [9]:
+def get_wordnet_pos(treebank_tag):
+    if treebank_tag.startswith('J'):
+        return wordnet.ADJ
+    elif treebank_tag.startswith('V'):
+        return wordnet.VERB
+    elif treebank_tag.startswith('N'):
+        return wordnet.NOUN
+    elif treebank_tag.startswith('R'):
+        return wordnet.ADV
+    else:
+        return wordnet.NOUN
+
+# Performing lemmatization to get frequency of base forms of words
+    
+lem = WordNetLemmatizer()
+l1=[]
+for i in tokens:
+    if i[1].startswith('NN') | i[1].startswith('JJ'):
+        l1.append(lem.lemmatize(i[0],pos=get_wordnet_pos(i[1])))
+    
+# Removing the stop words from the most common words
+
+stop_words=set(stopwords.words("english"))
+filtered_sent=[]
+for w in l1:
+    if w not in stop_words:
+        filtered_sent.append(w)
+In [10]:
+# Most frequent 100 words
+
+fdist = FreqDist(filtered_sent)
+fdist.most_common(100)
+Out[10]:
+[('/', 33601),
+ ('br', 33326),
+ ('<', 32958),
+ ('>', 31820),
+ ('good', 12089),
+ ('coffee', 9710),
+ ('flavor', 9356),
+ ('product', 8826),
+ ('great', 7424),
+ ('taste', 6873),
+ ('food', 6711),
+ ('dog', 6590),
+ ('tea', 5667),
+ ('time', 5065),
+ ('bag', 4267),
+ ('treat', 4075),
+ ('little', 4059),
+ ('price', 4043),
+ ('cup', 3592),
+ ('Amazon', 3581),
+ ('best', 3402),
+ ('chip', 3277),
+ ('store', 2998),
+ ('brand', 2955),
+ ('box', 2952),
+ ('day', 2914),
+ ('year', 2893),
+ ('sugar', 2890),
+ ('much', 2764),
+ ('way', 2556),
+ ('thing', 2547),
+ ('water', 2521),
+ ('small', 2487),
+ ('chocolate', 2440),
+ ('favorite', 2433),
+ ('sweet', 2355),
+ ('bit', 2300),
+ ('first', 2235),
+ ('cat', 2233),
+ ('order', 2186),
+ ('lot', 2096),
+ ('ingredient', 2057),
+ ('many', 2046),
+ ('easy', 1979),
+ ('healthy', 1962),
+ ('something', 1948),
+ ('bad', 1947),
+ ('old', 1938),
+ ('nice', 1882),
+ ('strong', 1879),
+ ('mix', 1858),
+ ('delicious', 1841),
+ ('one', 1839),
+ ('hot', 1838),
+ ('different', 1756),
+ ('quality', 1725),
+ ('regular', 1717),
+ ('high', 1716),
+ ('snack', 1711),
+ ('size', 1709),
+ ('review', 1707),
+ ('stuff', 1705),
+ ('free', 1646),
+ ('drink', 1631),
+ ('problem', 1624),
+ ('oil', 1623),
+ ('calorie', 1592),
+ ('package', 1578),
+ ('popcorn', 1563),
+ ('big', 1547),
+ ('%', 1543),
+ ('perfect', 1524),
+ ('milk', 1523),
+ ('low', 1519),
+ ('pack', 1518),
+ ('month', 1513),
+ ('hard', 1509),
+ ('sure', 1503),
+ ('juice', 1495),
+ ('fresh', 1464),
+ ('large', 1461),
+ ('salt', 1457),
+ ('local', 1366),
+ ('tasty', 1351),
+ ('less', 1347),
+ ('happy', 1336),
+ ('organic', 1326),
+ ('whole', 1300),
+ ('anything', 1261),
+ ('item', 1260),
+ ('Great', 1254),
+ ('people', 1251),
+ ('last', 1239),
+ ('new', 1203),
+ ('butter', 1187),
+ ('amount', 1180),
+ ('variety', 1178),
+ ('star', 1177),
+ ('fat', 1163),
+ ('texture', 1156)]
+In [2]:
+# Final Equivalence Classes
+
+tasteClass = ['flavor','taste','sweet','delicious','tasty'
+         # self
+         ]
+foodClass = ['coffee','product','food','tea','bag','treat','chip','cup','brand',
+        'brew','sugar','thing','chocolate','order','ingredient','health',
+        'snack','quality','stuff','package','drink','milk','fresh','popcorn',
+        'organic','juice','texture','item','potato',
+        # self
+        'kettle','smell','hygiene','pancake','cocoa','gluten','soda','sugar',
+        'orange','bean','fruit','cracker','sauce','grocery','chicken','cookie',
+        'meal']
+priceClass = ['price',
+         # self
+         'purchase','$','cost','cheap','expensive','money']
+deliveryClass = ['packag',
+            # self
+            'day','deliver','speed','fast','slow','shipping']
+quantityClass = ['little','small','many','lot','size','big','low',
+            # self
+            'large','less','quantity','amount','number','several','full','half']
+MICRO SENTENCE FORMATION
+Now, we split the entire review into simple/micro sentences each of which affects the score of only one of the classes mentioned above.
+
+CODE
+In [3]:
+def reviewToMicroSentences(compSent):
+    
+    # replacing the HTML breaks with whitespace
+    compSent = compSent.replace('<br />',' ')
+    
+    text_words = word_tokenize(compSent)   
+    text_pos = nltk.pos_tag(text_words)
+    
+    # Using autocorrect library for isolated spell correction
+    correctedSent = []
+    for ind, word in enumerate(text_words):
+        if text_pos[ind][1] not in (',', '.', ':'):
+            correctedSent.append(autoCorr.spell(word))
+        else:
+            correctedSent.append(word)
+            
+    text_pos = nltk.pos_tag(correctedSent)
+    
+    lastNoun = ''
+    
+    # initialise last noun as 'product' where first sentence starts with PRP/WDT
+    lastNoun = ('product','NN')
+    
+    microSent = []
+    currSent = []
+    hasNoun = False
+    
+    for ind, i in enumerate(text_pos):
+        # store the latest noun in context
+        if i[1].startswith('NN'):
+            lastNoun = i
+            hasNoun = True
+            currSent.append(i)
+        # replace any PRP/WDT with last context noun
+        elif i[1] in ('WDT','PRP'):
+            if i[0].lower() in ('it', 'itself', 'they', 'them', 'theirs', 'their', 'themselves'):
+                hasNoun = True
+                currSent.append(lastNoun)
+            else:
+                currSent.append(i)
+        # break sentence
+        elif i[1] in ('CC', ',', '.', ':'):
+            if (hasNoun):
+                microSent.append(currSent)
+            elif (currSent):
+                # for non-empty sentence without noun, insert last context noun at beginning
+                currSent.insert(0, lastNoun)
+                microSent.append(currSent)
+            currSent = []
+            hasNoun = False
+            # reset lastNoun to default if sentence ends
+            if i[1] == '.':
+                lastNoun = ('product','NN')
+        else:
+            currSent.append(i)
+    
+    return microSent
+EXAMPLES
+In [4]:
+tempReview = """Wow! The food was tasty and healthiy. The price was slightly expnsive, it could have been bettr.
+                        Pckaging was good as expcted. Amazing overll. Would recommnd defnitely."""
+microSents = reviewToMicroSentences(tempReview)
+
+for sent in microSents:
+    print(sent)
+[('Wow', 'NN')]
+[('The', 'DT'), ('food', 'NN'), ('was', 'VBD'), ('tasty', 'JJ')]
+[('food', 'NN'), ('healthy', 'JJ')]
+[('The', 'DT'), ('price', 'NN'), ('was', 'VBD'), ('slightly', 'RB'), ('expensive', 'JJ')]
+[('price', 'NN'), ('could', 'MD'), ('have', 'VB'), ('been', 'VBN'), ('better', 'RBR')]
+[('Packaging', 'NN'), ('was', 'VBD'), ('good', 'JJ'), ('as', 'IN'), ('expected', 'VBN')]
+[('product', 'NN'), ('Amazing', 'VBG'), ('overall', 'JJ')]
+[('product', 'NN'), ('Would', 'MD'), ('recommend', 'VB'), ('definitely', 'RB')]
+SEGREGATION OF MICRO SENTENCES TO EQUIVALENCE CLASSES
+Now, each micro sentence is mapped to one of the equivalence classes depending on the feature of product it talks about.
+
+CODE
+In [5]:
+# adds sentence to corresponding aspect class depending on checkTerm
+def addSentToClass(checkTerm, sent):
+    
+    added = True
+    
+    # checks if checkTerm contains any substring which maps to some class
+    # eg flavorful -> flavor -> taste class
+    # eg unhealthy -> health -> food class
+    if any(x in checkTerm.lower() for x in tasteClass):
+        tasteReviews.append(sent)
+    elif any(x in checkTerm.lower() for x in quantityClass):
+        quantityReviews.append(sent)
+    elif any(x in checkTerm.lower() for x in priceClass):
+        priceReviews.append(sent)
+    elif any(x in checkTerm.lower() for x in deliveryClass):
+        deliveryReviews.append(sent)
+    elif any(x in checkTerm.lower() for x in foodClass):
+        foodReviews.append(sent)
+    else:
+        # Given term cannot decide segregation, need to check other terms
+        added = False
+    return added
+
+
+def sentToClasses(sent):
+
+    adjList = []
+    nounList = []
+    verbList = []
+    
+    # find adjectives, verbs, nouns in given sentence
+    for i in sent:
+        if i[1].startswith('JJ'):
+            adjList.append(i)
+        elif i[1].startswith('NN'):
+            nounList.append(i)
+        elif i[1].startswith('V'):
+            verbList.append(i)
+
+    added = False
+
+    # Priority segregation : adjectives > verbs > nouns
+    
+    # Check for class-specific adjectives (eg tasty, healthy, cheap)
+    for i in adjList:
+        if addSentToClass(i[0], sent):
+            added = True
+            break
+
+    # If no relevant adjective present, check for class-specific verbs (eg delivered)
+    if not added:
+        for i in verbList:
+            if addSentToClass(i[0], sent):
+                added = True
+                break
+    
+    # If no relevant verb present, check for class-specific nouns (eg product, price, package, taste)
+    if not added:
+        for i in nounList:
+            if addSentToClass(i[0], sent):
+                added = True
+                break
+
+    # If no relevant noun present, add sentence to misc class
+    if not added:
+        miscReviews.append(sent)
+        
+
+def microSentsToClasses(microSents):
+        
+    for sent in microSents:
+        sentToClasses(sent)
+EXAMPLES
+In [6]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+microSentsToClasses(microSents)
+
+print('TASTE\n', tasteReviews)
+print('\nQUANTITY\n', quantityReviews)
+print('\nPRICE\n', priceReviews)
+print('\nDELIVERY\n', deliveryReviews)
+print('\nPRODUCT\n', foodReviews)
+print('\nMISC\n', miscReviews)
+TASTE
+ [[('The', 'DT'), ('food', 'NN'), ('was', 'VBD'), ('tasty', 'JJ')]]
+
+QUANTITY
+ []
+
+PRICE
+ [[('The', 'DT'), ('price', 'NN'), ('was', 'VBD'), ('slightly', 'RB'), ('expensive', 'JJ')], [('price', 'NN'), ('could', 'MD'), ('have', 'VB'), ('been', 'VBN'), ('better', 'RBR')]]
+
+DELIVERY
+ [[('Packaging', 'NN'), ('was', 'VBD'), ('good', 'JJ'), ('as', 'IN'), ('expected', 'VBN')]]
+
+PRODUCT
+ [[('food', 'NN'), ('healthy', 'JJ')], [('product', 'NN'), ('Amazing', 'VBG'), ('overall', 'JJ')], [('product', 'NN'), ('Would', 'MD'), ('recommend', 'VB'), ('definitely', 'RB')]]
+
+MISC
+ [[('Wow', 'NN')]]
+ANALYZING SENTIMENT OF CLASSES
+Now, we score the review in each of the classes on the basis of micro-sentences that are mapped to that equivalence classes.
+
+DICTIONARIES
+In [7]:
+# interjections that directly add to the score irrespective of context
+absoluteEmphasisDict = {
+    'wow' : 0.9,
+    'awesome' : 0.9,
+    'argh' : -0.7,
+    'meh' : -0.1,
+    'eww' : -0.9,
+    'yuck' : -0.9
+    
+}
+
+# words which affect the score depending on which other words were in their context
+relativeEmphasisDict = {
+    'perfectly' : 1.5,
+    'extremely' : 1.5,
+    'absolutely' : 1.5,
+    'completely' : 1.5,
+    'awfully' : 1.5,
+    'very' : 1.3,
+    'fairly' : 1.1,
+    'pretty' : 1.1,
+    'quite' : 1.1,
+    'almost' : 0.9,
+    'somewhat' : 0.8,    
+    'slightly' : 0.7,
+    'not' : -1,
+    'never' : -1.5
+}
+
+# Overall emotion of reviewer on basis of total score
+finalSentDict = {
+    5 : 'Extremely Satisfied',
+    4 : 'Extremely Satisfied',
+    3 : 'Satisfied',
+    2 : 'Neutral',
+    1 : 'Dissatisfied',
+    0 : 'Extremely Dissatisfied'
+}
+We have used an Emoticon dictionary which contains various text emoticons and their scores
+
+In [8]:
+emojiData = pd.read_csv('./emoji.csv')
+emojiData.head()
+Out[8]:
+emoji	score
+0	:)	2
+1	:(	-2
+2	:|	-1
+3	:]	2
+4	:[	-2
+In [9]:
+# Normalizing the score between -1 and 1
+emojiData['score'] = emojiData['score'].map(lambda x : 2*((x + 3)/7) - 1)
+emojiData.head()
+Out[9]:
+emoji	score
+0	:)	0.428571
+1	:(	-0.714286
+2	:|	-0.428571
+3	:]	0.428571
+4	:[	-0.714286
+CODE
+In [10]:
+def scoreAspect(aspectSents, addEmoji, review):
+    
+    # SenticNet object defined
+    snObj = SenticNet()
+    sentCount = len(aspectSents)
+    totalScore = 0
+    wordCount = 0
+    
+    for sent in aspectSents:
+        sentScore = 0
+        relativeFac = 0
+        for word in sent:
+            # Calculate sentiment score of adjectives using SenticNet
+            if word[1].startswith('JJ'):
+                sentScore += float(snObj.polarity_intense(word[0].lower()))
+                wordCount += 1
+            # Directly add sentiment score of interjections (eg wow, yuck)
+            elif word[0].lower() in absoluteEmphasisDict:
+                sentScore += absoluteEmphasisDict[word[0].lower()]
+                wordCount += 1
+            # Store intensity of relativeEmphasis words (eg very, slightly)
+            elif word[0].lower() in relativeEmphasisDict:
+                relativeFac += relativeEmphasisDict[word[0].lower()]
+        # If relative emphasis words are present, multiply their magnitude to the score of sentence
+        if relativeFac != 0:
+            sentScore *= relativeFac
+        # Add score of micro-sentence to total score of aspect
+        totalScore += sentScore
+     
+    # Misc Reviews aspect
+    if addEmoji:
+        emojiScore = 0
+        emojiCount = 0
+        for ind, emoji in emojiData.iterrows():
+            if emoji['emoji'] in review:
+                emojiScore += emoji['score']
+                emojiCount += 1
+                # Add present emoji to miscReviews
+                miscReviews.append([(emoji['emoji'], 'EMJ')])
+        
+        wordCount += emojiCount
+        totalScore += emojiScore
+    
+    # Normalise totalScore to between [0,5]
+    if wordCount!= 0:
+        totalScore = totalScore/wordCount
+        return ((totalScore*1.8) + 2.5)
+    # If no micro-sentence present for given aspect, return -1
+    else:
+        return -1
+EXAMPLES
+In [12]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+review = """The food was good."""
+
+microSents = reviewToMicroSentences(review)    
+microSentsToClasses(microSents)
+scoreAspect(foodReviews, False, review)
+Out[12]:
+4.0282
+In [15]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+review = """The food was not good."""
+
+microSents = reviewToMicroSentences(review)    
+microSentsToClasses(microSents)
+print(scoreAspect(foodReviews, False, review))
+print(scoreAspect(miscReviews, True, review))
+0.9718
+-1
+In [16]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+review = """The food was extremely good."""
+
+microSents = reviewToMicroSentences(review)    
+microSentsToClasses(microSents)
+print(scoreAspect(foodReviews, False, review))
+print(scoreAspect(miscReviews, True, review))
+4.7923
+-1
+In [17]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+review = """The food was good. :)"""
+
+microSents = reviewToMicroSentences(review)    
+microSentsToClasses(microSents)
+print(scoreAspect(foodReviews, False, review))
+print(scoreAspect(miscReviews, True, review))
+4.0282
+3.2714285714285714
+In [48]:
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+review = """The price was also very cheap."""
+
+microSents = reviewToMicroSentences(review)    
+microSentsToClasses(microSents)
+print(scoreAspect(priceReviews, False, review))
+priceReviews
+2.73634
+Out[48]:
+[[('The', 'DT'),
+  ('price', 'NN'),
+  ('was', 'VBD'),
+  ('also', 'RB'),
+  ('very', 'RB'),
+  ('cheap', 'JJ')]]
+PUTTING IT TOGETHER
+CODE
+In [59]:
+# Prints micro-sentences belonging to the aspect and its score
+def printAspect(heading, aspectReviews, review):
+    
+    print('\n', heading)
+    
+    # Consider Emoticons under Misc Reviews class
+    if heading == 'MISC':
+        score = scoreAspect(aspectReviews, True, review)
+    else:
+        score = scoreAspect(aspectReviews, False, review)
+    
+    # Prints the micro-sentences belonging to that aspect
+    for sent in aspectReviews:
+        for word in sent:
+            print(word[0], end=' ')
+        print()
+    
+    # Score should remain between [0,5]
+    if score > 5:
+        score = 5
+    elif (score != -1) & (score < 0):
+        score = 0
+    
+    # Score -1 means no micro-sentence present for that class (ie reviewer did not comment about that aspect)
+    if score != -1:
+        print('Score = %.2f' % score)
+    else:
+        print('Score = NA')
+        
+    return score
+
+
+def analyseReview(review):
+
+    # Break review into micro-sentences and print them
+    microSents = reviewToMicroSentences(review)
+    
+    print(' MICRO-SENTENCES :')
+    for sent in microSents:
+        for word in sent:
+            print(word[0], end=' ')
+        print()
+    
+    # Map micro-sentences to aspect classes
+    microSentsToClasses(microSents)
+    
+    allScores = []
+    # Calculate and print individual scores
+    allScores.append(printAspect('TASTE', tasteReviews, review))
+    allScores.append(printAspect('QUANTITY', quantityReviews, review))
+    allScores.append(printAspect('PRICE', priceReviews, review))
+    allScores.append(printAspect('DELIVERY', deliveryReviews, review))
+    allScores.append(printAspect('PRODUCT', foodReviews, review))
+    allScores.append(printAspect('MISC', miscReviews, review))
+    
+    # Calculate and print overall emotion of reviewer
+    validScores = [score for score in allScores if score != -1]
+    overallScore = int(sum(validScores)/len(validScores))
+    print('\n OVERALL SCORE : %.2f' % (sum(validScores)/len(validScores)))
+    print('\n OVERALL EMOTION :', finalSentDict[overallScore])
+EXAMPLES
+In [19]:
+tempReview = """Amazing! The product was healthy and tasty. The packet had a good number of chips as well. 
+    I was not satisfied with the price though, it could have been cheaper. 
+    It was delivered on time as expected, and the packaging was sturdy. Overall good, would recommend."""
+
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+analyseReview(tempReview)
+ MICRO-SENTENCES :
+product Amazing 
+The product was healthy 
+product tasty 
+The packet had a good number of chips as well 
+I was not satisfied with the price though 
+price could have been cheaper 
+product was delivered on time as expected 
+the packaging was sturdy 
+product Overall good 
+product would recommend 
+
+ TASTE
+product tasty 
+Score = 2.59
+
+ QUANTITY
+The packet had a good number of chips as well 
+Score = 4.03
+
+ PRICE
+I was not satisfied with the price though 
+price could have been cheaper 
+Score = 0.95
+
+ DELIVERY
+product was delivered on time as expected 
+the packaging was sturdy 
+Score = 2.37
+
+ PRODUCT
+product Amazing 
+The product was healthy 
+product Overall good 
+product would recommend 
+Score = 3.02
+
+ MISC
+Score = NA
+
+ OVERALL EMOTION : Neutral
+In [20]:
+tempReview = """The food sucked. It was unhealthy and poor. The packaging was damaged as well. Never buying this again.
+    It was very expensive. :("""
+
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+analyseReview(tempReview)
+ MICRO-SENTENCES :
+The food sucked 
+product was unhealthy 
+product poor 
+The packaging was damaged as well 
+product Never buying this again 
+product was very expensive 
+
+ TASTE
+Score = NA
+
+ QUANTITY
+Score = NA
+
+ PRICE
+product was very expensive 
+Score = 0.49
+
+ DELIVERY
+The packaging was damaged as well 
+Score = NA
+
+ PRODUCT
+The food sucked 
+product was unhealthy 
+product poor 
+product Never buying this again 
+Score = 2.05
+
+ MISC
+:( 
+Score = 1.21
+
+ OVERALL EMOTION : Dissatisfied
+In [62]:
+tempReview = """Awesome! It was very tasty and extremely healthy. The price was not at all expensive. 
+            It was delivered extremely fast. The number of items in the packet was also enough to satisfy. xo"""
+
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+analyseReview(tempReview)
+ MICRO-SENTENCES :
+product Awesome 
+product was very tasty 
+product extremely healthy 
+The price was not at all expensive 
+product was delivered extremely fast 
+The number of items in the packet was also enough to satisfy 
+
+ TASTE
+product was very tasty 
+Score = 2.62
+
+ QUANTITY
+The number of items in the packet was also enough to satisfy 
+Score = NA
+
+ PRICE
+The price was not at all expensive 
+Score = 4.05
+
+ DELIVERY
+product was delivered extremely fast 
+Score = 2.89
+
+ PRODUCT
+product Awesome 
+product extremely healthy 
+Score = 4.35
+
+ MISC
+xo 
+Score = 3.79
+
+ OVERALL SCORE : 3.54
+
+ OVERALL EMOTION : Satisfied
+In [33]:
+tempReview = """Wow! What a tasty chocolate. And what a reasonable price. I was wrong to buy Hershey's for all this time just
+            because of the name, and they were really expensive. Had I come across this chocolate sooner, I would never have bought
+            another brand ever. xo"""
+
+tasteReviews = []
+quantityReviews = []
+priceReviews = []
+deliveryReviews = []
+foodReviews = []
+miscReviews = []
+
+analyseReview(tempReview)
+ MICRO-SENTENCES :
+Wow 
+What a tasty chocolate 
+what a reasonable price 
+I was wrong to buy Hershey is for all this time just because of the name 
+name were really expensive 
+Had I come across this chocolate sooner 
+I would never have bought another brand ever 
+
+ TASTE
+What a tasty chocolate 
+Score = 2.59
+
+ QUANTITY
+Score = NA
+
+ PRICE
+what a reasonable price 
+name were really expensive 
+Score = 1.69
+
+ DELIVERY
+Score = NA
+
+ PRODUCT
+Had I come across this chocolate sooner 
+I would never have bought another brand ever 
+Score = NA
+
+ MISC
+Wow 
+I was wrong to buy Hershey is for all this time just because of the name 
+xo 
+Score = 3.01
+
+ OVERALL SCORE : 2.43
+
+ OVERALL EMOTION : Neutral
